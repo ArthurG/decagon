@@ -17,13 +17,13 @@ from decagon.deep.minibatch import EdgeMinibatchIterator
 from decagon.utility import rank_metrics, preprocessing
 
 # Train on CPU (hide GPU) due to memory constraints
-os.environ['CUDA_VISIBLE_DEVICES'] = ""
+#os.environ['CUDA_VISIBLE_DEVICES'] = ""
 
 # Train on GPU
-# os.environ["CUDA_DEVICE_ORDER"] = 'PCI_BUS_ID'
-# os.environ["CUDA_VISIBLE_DEVICES"] = '0'
-# config = tf.ConfigProto()
-# config.gpu_options.allow_growth = True
+os.environ["CUDA_DEVICE_ORDER"] = 'PCI_BUS_ID'
+os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
 
 np.random.seed(0)
 
