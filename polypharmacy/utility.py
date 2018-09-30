@@ -43,6 +43,34 @@ def load_ppi(fname='bio-decagon-ppi.csv'):
     node2idx = {node: i for i, node in enumerate(net.nodes())}
     return net, node2idx
 
+# Does the same thing as load_ppi except that the nodes are all indicies starting from 0
+# Returns networkx graph of the PPI networkz 
+# and a dictionary that maps each gene ID to a number
+def load_ppi_v2(fname='bio-decagon-ppi.csv'):
+    fin = open(fname)
+    print('Reading: %s' % fname)
+    fin.readline()
+    edges = []
+    ppi_to_idx = {}
+    idx = 0
+    for line in fin:
+        gene_id1, gene_id2= line.strip().split(',')
+        if gene_id1 not in ppi_to_idx:
+            ppi_to_idx[gene_id1] = idx
+            idx+=1
+        if gene_id2 not in ppi_to_idx:
+            ppi_to_idx[gene_id2] = idx
+            idx+=1
+        edges += [[ppi_to_idx[gene_id1],ppi_to_idx[gene_id2]]]
+    nodes = set([u for e in edges for u in e])
+    print( 'Edges: %d' % len(edges))
+    print( 'Nodes: %d' % len(nodes))
+    net = nx.Graph()
+    net.add_edges_from(edges)
+    net.remove_nodes_from(nx.isolates(net))
+    net.remove_edges_from(net.selfloop_edges())
+    return net, ppi_to_idx
+
 # Returns dictionary from Stitch ID to list of individual side effects, 
 # and dictionary from side effects to their names.
 def load_mono_se(fname='bio-decagon-mono.csv'):
