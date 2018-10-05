@@ -41,13 +41,12 @@ np.random.seed(0)
 #
 ###########################################################
 
-
 def get_accuracy_scores(edges_pos, edges_neg, edge_type):
     feed_dict.update({placeholders['dropout']: 0})
     feed_dict.update({placeholders['batch_edge_type_idx']: minibatch.edge_type2idx[edge_type]})
     feed_dict.update({placeholders['batch_row_edge_type']: edge_type[0]})
     feed_dict.update({placeholders['batch_col_edge_type']: edge_type[1]})
-    rec = sess.run(opt.preds, feed_dict=feed_dict)
+    rec = sess.run(opt.predictions, feed_dict=feed_dict)
 
     def sigmoid(x):
         return 1. / (1 + np.exp(-x))
@@ -60,6 +59,7 @@ def get_accuracy_scores(edges_pos, edges_neg, edge_type):
     for u, v in edges_pos[edge_type[:2]][edge_type[2]]:
         score = sigmoid(rec[u, v])
         preds.append(score)
+        assert adj_mats_orig[edge_type[:2]][edge_type[2]][u,v] == 1, 'Problem 1'
 
         actual.append(edge_ind)
         predicted.append((score, edge_ind))
@@ -69,6 +69,7 @@ def get_accuracy_scores(edges_pos, edges_neg, edge_type):
     for u, v in edges_neg[edge_type[:2]][edge_type[2]]:
         score = sigmoid(rec[u, v])
         preds_neg.append(score)
+        assert adj_mats_orig[edge_type[:2]][edge_type[2]][u,v] == 0, 'Problem 0'
 
         predicted.append((score, edge_ind))
         edge_ind += 1
@@ -83,7 +84,6 @@ def get_accuracy_scores(edges_pos, edges_neg, edge_type):
     apk_sc = rank_metrics.apk(actual, predicted, k=50)
 
     return roc_sc, aupr_sc, apk_sc
-
 
 def construct_placeholders(edge_types):
     placeholders = {
@@ -101,8 +101,6 @@ def construct_placeholders(edge_types):
         'feat_%d' % i: tf.sparse_placeholder(tf.float32)
         for i, _ in edge_types})
     return placeholders
-
-
 # In[2]:
 
 
@@ -126,7 +124,7 @@ def construct_placeholders(edge_types):
 val_test_size = 0.10
 
 
-gene_net, node2idx = load_ppi_v2("data/bio-decagon-ppi-v2.csv") # protein protein interactions
+gene_net, node2idx = load_ppi_v2("data/bio-decagon-ppi.csv") # protein protein interactions
 stitch2proteins = load_targets("data/bio-decagon-targets.csv") #drug protein interations
 combo2stitch, combo2se, se2name = load_combo_se('data/bio-decagon-combo.csv') #Drug drug interactions
 
@@ -419,8 +417,7 @@ feed_dict = {}
 ###########################################################
 
 print("Train model")
-print_every = 1
-for epoch in range(FLAGS.epochs):
+for epoch in range(50):
 
     minibatch.shuffle()
     itr = 0
@@ -429,7 +426,7 @@ for epoch in range(FLAGS.epochs):
         feed_dict = minibatch.next_minibatch_feed_dict(placeholders=placeholders)
         feed_dict = minibatch.update_feed_dict(
             feed_dict=feed_dict,
-            dropout=FLAGS.dropout,
+            dropout=0.1,
             placeholders=placeholders)
 
         t = time.time()
@@ -439,7 +436,7 @@ for epoch in range(FLAGS.epochs):
         train_cost = outs[1]
         batch_edge_type = outs[2]
 
-        if itr % print_every == 0:
+        if itr % PRINT_PROGRESS_EVERY == 0:
             val_auc, val_auprc, val_apk = get_accuracy_scores(
                 minibatch.val_edges, minibatch.val_edges_false,
                 minibatch.idx2edge_type[minibatch.current_edge_type_idx])
@@ -449,12 +446,7 @@ for epoch in range(FLAGS.epochs):
                   "val_roc=", "{:.5f}".format(val_auc), "val_auprc=", "{:.5f}".format(val_auprc),
                   "val_apk=", "{:.5f}".format(val_apk), "time=", "{:.5f}".format(time.time() - t))
 
-            train_auc, train_auprc, train_apk = get_accuracy_scores(
-                minibatch.train_edges, minibatch.val_edges_false,
-                minibatch.idx2edge_type[minibatch.current_edge_type_idx])
-
         itr += 1
-
 
 print("Optimization finished!")
 
@@ -465,5 +457,4 @@ for et in range(num_edge_types):
     print("Edge type:", "%04d" % et, "Test AUROC score", "{:.5f}".format(roc_score))
     print("Edge type:", "%04d" % et, "Test AUPRC score", "{:.5f}".format(auprc_score))
     print("Edge type:", "%04d" % et, "Test AP@k score", "{:.5f}".format(apk_score))
-    print()
-
+print()
