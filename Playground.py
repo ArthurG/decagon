@@ -22,7 +22,7 @@ from decagon.deep.model import DecagonModel
 from decagon.deep.minibatch import EdgeMinibatchIterator
 from decagon.utility import rank_metrics, preprocessing
 
-from polypharmacy.utility import *
+from polypharmacy import utility
 
 # Train on CPU (hide GPU) due to memory constraints
 #os.environ['CUDA_VISIBLE_DEVICES'] = ""
@@ -124,9 +124,9 @@ def construct_placeholders(edge_types):
 val_test_size = 0.10
 
 
-gene_net, node2idx = load_ppi_v2("data/bio-decagon-ppi.csv") # protein protein interactions
-stitch2proteins = load_targets("data/bio-decagon-targets.csv") #drug protein interations
-combo2stitch, combo2se, se2name = load_combo_se('data/bio-decagon-combo.csv') #Drug drug interactions
+gene_net, node2idx = utility.load_ppi_v2("data/bio-decagon-ppi.csv") # protein protein interactions
+stitch2proteins = utility.load_targets("data/bio-decagon-targets.csv") #drug protein interations
+combo2stitch, combo2se, se2name = utility.load_combo_se('data/bio-decagon-combo.csv') #Drug drug interactions
 
 
 # ## Clean drug data
@@ -255,19 +255,16 @@ print(n_genes, n_drugs)
 
 # In[9]:
 
-
 # data representation
 adj_mats_orig = {
-    (0, 0): [gene_adj, gene_adj.transpose(copy=True)],
-    (0, 1): [gene_drug_adj],
-    (1, 0): [drug_gene_adj],
-    #(1, 1): drug_drug_adj_list + [x.transpose(copy=True) for x in drug_drug_adj_list],
-    (1, 1): drug_drug_adj_list
+    (0,0): [gene_adj],
+    (0,1): [gene_drug_adj],
+    (1,0): [drug_gene_adj],
+    (1,1): drug_drug_adj_list,
 }
 degrees = {
-    0: [gene_degrees, gene_degrees],
-    1: drug_degrees_list
-    #1: drug_degrees_list + drug_degrees_list,
+    0: [gene_degrees],
+    1: drug_degrees_list,
 }
 
 # featureless (genes)
@@ -294,17 +291,25 @@ feat = {
     1: drug_feat,
 }
 
-edge_type2dim = {k: [adj.shape for adj in adjs] for k, adjs in adj_mats_orig.items()}
+edge_type2dim = {k: [adj.shape for adj in adjs] for k, adjs in adj_mats_orig.iteritems()}
+edge_type2directed = {
+    (0,0): [False],
+    (0,1): [True],
+    (1,0): [True],
+    (1,1): [False]*len(drug_drug_adj_list),
+}
 edge_type2decoder = {
-    (0, 0): 'bilinear',
-    (0, 1): 'bilinear',
-    (1, 0): 'bilinear',
-    (1, 1): 'dedicom',
+    (0,0): 'bilinear',
+    (0,1): 'bilinear',
+    (1,0): 'bilinear',
+    (1,1): 'dedicom',
 }
 
-edge_types = {k: len(v) for k, v in adj_mats_orig.items()}
+edge_types = {k: len(v) for k, v in adj_mats_orig.iteritems()}
 num_edge_types = sum(edge_types.values())
-print("Edge types:", "%d" % num_edge_types)
+print('Edge types: %d' % num_edge_types)
+
+
 
 
 # In[10]:
@@ -346,33 +351,18 @@ placeholders = construct_placeholders(edge_types)
 #
 ###########################################################
 
-print("Create minibatch iterator")
-#minibatch = EdgeMinibatchIterator(
-#    adj_mats=adj_mats_orig,
-#    feat=feat,
-#    edge_types=edge_types,
-#    batch_size=FLAGS.batch_size,
-#    val_test_size=val_test_size
-#)
 
+print('Create minibatch iterator')
+minibatch = EdgeMinibatchIterator(
+    adj_mats=adj_mats_orig,
+    feat=feat,
+    edge_types=edge_types,
+    directed=edge_type2directed,
+    batch_size=FLAGS.batch_size,
+    val_test_size=val_test_size
+)
 
-# In[12]:
-
-
-import pickle
-
-#pickle_out = open("minibatch.pickle","wb")
-#pickle.dump(minibatch, pickle_out)
-#pickle_out.close()
-
-fileObject = open("minibatch.pickle",'rb')  
-minibatch = pickle.load(fileObject)  
-fileObject.close()
-
-
-
-
-print("Create model")
+print('Create model')
 model = DecagonModel(
     placeholders=placeholders,
     num_feat=num_feat,
@@ -381,8 +371,7 @@ model = DecagonModel(
     decoders=edge_type2decoder,
 )
 
-
-print("Create optimizer")
+print('Create optimizer')
 with tf.name_scope('optimizer'):
     opt = DecagonOptimizer(
         embeddings=model.embeddings,
@@ -396,19 +385,24 @@ with tf.name_scope('optimizer'):
         margin=FLAGS.max_margin
     )
 
-
-print("Initialize session")
+print('Initialize session')
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 feed_dict = {}
 
 
-# In[19]:
+import pickle
+
+pickle_out = open("minibatch.pickle","wb")
+pickle.dump(minibatch, pickle_out)
+pickle_out.close()
+
+#fileObject = open("minibatch.pickle",'rb')  
+#minibatch = pickle.load(fileObject)  
+#fileObject.close()
 
 
 
-
-# In[ ]:
 
 
 
