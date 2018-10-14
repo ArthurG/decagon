@@ -2,7 +2,7 @@ from collections import defaultdict
 
 import tensorflow as tf
 
-from .layers import GraphConvolutionMulti, GraphConvolutionSparseMulti, \
+from layers import GraphConvolutionMulti, GraphConvolutionSparseMulti, \
     DistMultDecoder, InnerProductDecoder, DEDICOMDecoder, BilinearDecoder
 
 flags = tf.app.flags
@@ -71,7 +71,7 @@ class DecagonModel(Model):
                 act=lambda x: x, dropout=self.dropout,
                 logging=self.logging)(self.inputs[j]))
 
-        for i, hid1 in self.hidden1.items():
+        for i, hid1 in self.hidden1.iteritems():
             self.hidden1[i] = tf.nn.relu(tf.add_n(hid1))
 
         self.embeddings_reltyp = defaultdict(list)
@@ -83,7 +83,7 @@ class DecagonModel(Model):
                 dropout=self.dropout, logging=self.logging)(self.hidden1[j]))
 
         self.embeddings = [None] * self.num_obj_types
-        for i, embeds in self.embeddings_reltyp.items():
+        for i, embeds in self.embeddings_reltyp.iteritems():
             # self.embeddings[i] = tf.nn.relu(tf.add_n(embeds))
             self.embeddings[i] = tf.add_n(embeds)
 

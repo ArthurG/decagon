@@ -69,7 +69,11 @@ best might depend on a concrete use case.
 
 Decagon is tested to work under Python 2 and Python 3. 
 
+<<<<<<< HEAD
 Recent versions of Tensorflow, sklearn, networkx, numpy, and scipy are required. All the required packages can be installed using the following command:
+=======
+Decagon is tested to work under Python 2.7.
+>>>>>>> parent of 44461f3... Support Python 2 and 3, represent undirected nets
 
     $ pip install -r requirements.txt
 
