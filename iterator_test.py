@@ -261,13 +261,13 @@ adj_mats_orig = {
     (0, 0): [gene_adj, gene_adj.transpose(copy=True)],
     (0, 1): [gene_drug_adj],
     (1, 0): [drug_gene_adj],
-    #(1, 1): drug_drug_adj_list + [x.transpose(copy=True) for x in drug_drug_adj_list],
-    (1, 1): drug_drug_adj_list
+    (1, 1): drug_drug_adj_list + [x.transpose(copy=True) for x in drug_drug_adj_list],
+    #(1, 1): drug_drug_adj_list
 }
 degrees = {
     0: [gene_degrees, gene_degrees],
-    1: drug_degrees_list
-    #1: drug_degrees_list + drug_degrees_list,
+    #1: drug_degrees_list
+    1: drug_degrees_list + drug_degrees_list,
 }
 
 # featureless (genes)
@@ -347,13 +347,13 @@ placeholders = construct_placeholders(edge_types)
 ###########################################################
 
 print("Create minibatch iterator")
-#minibatch = EdgeMinibatchIterator(
-#    adj_mats=adj_mats_orig,
-#    feat=feat,
-#    edge_types=edge_types,
-#    batch_size=FLAGS.batch_size,
-#    val_test_size=val_test_size
-#)
+minibatch = EdgeMinibatchIterator(
+    adj_mats=adj_mats_orig,
+    feat=feat,
+    edge_types=edge_types,
+    batch_size=FLAGS.batch_size,
+    val_test_size=val_test_size
+)
 
 
 # In[12]:
@@ -361,49 +361,13 @@ print("Create minibatch iterator")
 
 import pickle
 
-#pickle_out = open("minibatch.pickle","wb")
-#pickle.dump(minibatch, pickle_out)
-#pickle_out.close()
+pickle_out = open("minibatch_v2.pickle","wb")
+pickle.dump(minibatch, pickle_out)
+pickle_out.close()
 
-fileObject = open("minibatch.pickle",'rb')  
-minibatch = pickle.load(fileObject)  
-fileObject.close()
-
-
-
-
-print("Create model")
-model = DecagonModel(
-    placeholders=placeholders,
-    num_feat=num_feat,
-    nonzero_feat=nonzero_feat,
-    edge_types=edge_types,
-    decoders=edge_type2decoder,
-)
-
-
-print("Create optimizer")
-with tf.name_scope('optimizer'):
-    opt = DecagonOptimizer(
-        embeddings=model.embeddings,
-        latent_inters=model.latent_inters,
-        latent_varies=model.latent_varies,
-        degrees=degrees,
-        edge_types=edge_types,
-        edge_type2dim=edge_type2dim,
-        placeholders=placeholders,
-        batch_size=FLAGS.batch_size,
-        margin=FLAGS.max_margin
-    )
-
-
-print("Initialize session")
-sess = tf.Session()
-sess.run(tf.global_variables_initializer())
-feed_dict = {}
-
-
-# In[19]:
+#fileObject = open("minibatch.pickle",'rb')  
+#minibatch = pickle.load(fileObject)  
+#fileObject.close()
 
 
 
@@ -432,21 +396,7 @@ for epoch in range(50):
             placeholders=placeholders)
 
         t = time.time()
-
-        # Training step: run single weight update
-        outs = sess.run([opt.opt_op, opt.cost, opt.batch_edge_type_idx], feed_dict=feed_dict)
-        train_cost = outs[1]
-        batch_edge_type = outs[2]
-
-        if itr % PRINT_PROGRESS_EVERY == 0:
-            val_auc, val_auprc, val_apk = get_accuracy_scores(
-                minibatch.val_edges, minibatch.val_edges_false,
-                minibatch.idx2edge_type[minibatch.current_edge_type_idx])
-
-            print("Epoch:", "%04d" % (epoch + 1), "Iter:", "%04d" % (itr + 1), "Edge:", "%04d" % batch_edge_type,
-                  "train_loss=", "{:.5f}".format(train_cost),
-                  "val_roc=", "{:.5f}".format(val_auc), "val_auprc=", "{:.5f}".format(val_auprc),
-                  "val_apk=", "{:.5f}".format(val_apk), "time=", "{:.5f}".format(time.time() - t))
+        print("Currently on epoch, iter", epoch, itr)
 
         itr += 1
 
