@@ -65,7 +65,7 @@ class DecagonModel(Model):
         self.hidden1 = defaultdict(list)
         for i, j in self.edge_types:
             self.hidden1[i].append(GraphConvolutionSparseMulti(
-                input_dim=self.input_dim, output_dim=64,
+                input_dim=self.input_dim, output_dim=FLAGS.hidden1,
                 edge_type=(i,j), num_types=self.edge_types[i,j],
                 adj_mats=self.adj_mats, nonzero_feat=self.nonzero_feat,
                 act=lambda x: x, dropout=self.dropout,
@@ -77,7 +77,7 @@ class DecagonModel(Model):
         self.embeddings_reltyp = defaultdict(list)
         for i, j in self.edge_types:
             self.embeddings_reltyp[i].append(GraphConvolutionMulti(
-                input_dim=64, output_dim=32,
+                input_dim=FLAGS.hidden1, output_dim=FLAGS.hidden2,
                 edge_type=(i,j), num_types=self.edge_types[i,j],
                 adj_mats=self.adj_mats, act=lambda x: x,
                 dropout=self.dropout, logging=self.logging)(self.hidden1[j]))
@@ -92,22 +92,22 @@ class DecagonModel(Model):
             decoder = self.decoders[i, j]
             if decoder == 'innerproduct':
                 self.edge_type2decoder[i, j] = InnerProductDecoder(
-                    input_dim=32, logging=self.logging,
+                    input_dim=FLAGS.hidden2, logging=self.logging,
                     edge_type=(i, j), num_types=self.edge_types[i, j],
                     act=lambda x: x, dropout=self.dropout)
             elif decoder == 'distmult':
                 self.edge_type2decoder[i, j] = DistMultDecoder(
-                    input_dim=32, logging=self.logging,
+                    input_dim=FLAGS.hidden2, logging=self.logging,
                     edge_type=(i, j), num_types=self.edge_types[i, j],
                     act=lambda x: x, dropout=self.dropout)
             elif decoder == 'bilinear':
                 self.edge_type2decoder[i, j] = BilinearDecoder(
-                    input_dim=32, logging=self.logging,
+                    input_dim=FLAGS.hidden2, logging=self.logging,
                     edge_type=(i, j), num_types=self.edge_types[i, j],
                     act=lambda x: x, dropout=self.dropout)
             elif decoder == 'dedicom':
                 self.edge_type2decoder[i, j] = DEDICOMDecoder(
-                    input_dim=32, logging=self.logging,
+                    input_dim=FLAGS.hidden2, logging=self.logging,
                     edge_type=(i, j), num_types=self.edge_types[i, j],
                     act=lambda x: x, dropout=self.dropout)
             else:
@@ -119,14 +119,14 @@ class DecagonModel(Model):
             decoder = self.decoders[edge_type]
             for k in range(self.edge_types[edge_type]):
                 if decoder == 'innerproduct':
-                    glb = tf.eye(32, 32)
-                    loc = tf.eye(32, 32)
+                    glb = tf.eye(FLAGS.hidden2, FLAGS.hidden2)
+                    loc = tf.eye(FLAGS.hidden2, FLAGS.hidden2)
                 elif decoder == 'distmult':
                     glb = tf.diag(self.edge_type2decoder[edge_type].vars['relation_%d' % k])
-                    loc = tf.eye(32, 32)
+                    loc = tf.eye(FLAGS.hidden2, FLAGS.hidden2)
                 elif decoder == 'bilinear':
                     glb = self.edge_type2decoder[edge_type].vars['relation_%d' % k]
-                    loc = tf.eye(32, 32)
+                    loc = tf.eye(FLAGS.hidden2, FLAGS.hidden2)
                 elif decoder == 'dedicom':
                     glb = self.edge_type2decoder[edge_type].vars['global_interaction']
                     loc = tf.diag(self.edge_type2decoder[edge_type].vars['local_variation_%d' % k])
