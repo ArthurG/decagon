@@ -352,6 +352,7 @@ placeholders = construct_placeholders(edge_types)
 ###########################################################
 
 
+"""
 print('Create minibatch iterator')
 minibatch = EdgeMinibatchIterator(
     adj_mats=adj_mats_orig,
@@ -361,6 +362,7 @@ minibatch = EdgeMinibatchIterator(
     batch_size=FLAGS.batch_size,
     val_test_size=val_test_size
 )
+"""
 
 print('Create model')
 model = DecagonModel(
@@ -393,13 +395,15 @@ feed_dict = {}
 
 import pickle
 
+"""
 pickle_out = open("minibatch.pickle","wb")
 pickle.dump(minibatch, pickle_out)
 pickle_out.close()
+"""
 
-#fileObject = open("minibatch.pickle",'rb')  
-#minibatch = pickle.load(fileObject)  
-#fileObject.close()
+fileObject = open("minibatch.pickle",'rb')  
+minibatch = pickle.load(fileObject)  
+fileObject.close()
 
 
 
@@ -413,7 +417,7 @@ pickle_out.close()
 ###########################################################
 
 print("Train model")
-for epoch in range(50):
+for epoch in range(100):
 
     minibatch.shuffle()
     itr = 0
