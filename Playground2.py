@@ -140,7 +140,8 @@ drug_degrees_list = [np.array(drug_adj.sum(axis=0)).squeeze() for drug_adj in dr
 val_test_size = 0.10
 
 
-gene_net, node2idx = utility.load_ppi_v2("data/bio-decagon-ppi.csv") # protein protein interactions
+modelname = "livejournal-bw"
+gene_net, node2idx = utility.load_ppi_v2("data/2328-bio-decagon-ppi-alternative-LiveJournal-bw.csv") # protein protein interactions
 stitch2proteins = utility.load_targets("data/bio-decagon-targets.csv") #drug protein interations
 combo2stitch, combo2se, se2name = utility.load_combo_se('data/bio-decagon-combo.csv') #Drug drug interactions
 
@@ -327,7 +328,7 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('neg_sample_size', 1, 'Negative sample size.')
 flags.DEFINE_float('learning_rate', 0.001, 'Initial learning rate.')
-flags.DEFINE_integer('epochs', 100, 'Number of epochs to train.')
+flags.DEFINE_integer('epochs', 25, 'Number of epochs to train.')
 flags.DEFINE_integer('hidden1', 64, 'Number of units in hidden layer 1.')
 flags.DEFINE_integer('hidden2', 32, 'Number of units in hidden layer 2.')
 flags.DEFINE_float('weight_decay', 0, 'Weight for L2 loss on embedding matrix.')
@@ -337,7 +338,7 @@ flags.DEFINE_integer('batch_size', 512, 'minibatch size.')
 flags.DEFINE_boolean('bias', True, 'Bias term.')
 # Important -- Do not evaluate/print validation performance every iteration as it can take
 # substantial amount of time
-PRINT_PROGRESS_EVERY = 150
+PRINT_PROGRESS_EVERY = 901
 
 print 'Defining placeholders'
 placeholders = construct_placeholders(edge_types)
@@ -348,7 +349,6 @@ placeholders = construct_placeholders(edge_types)
 #
 ###########################################################
 
-"""
 print 'Create minibatch iterator'
 minibatch = EdgeMinibatchIterator(
     adj_mats=adj_mats_orig,
@@ -358,22 +358,19 @@ minibatch = EdgeMinibatchIterator(
     batch_size=FLAGS.batch_size,
     val_test_size=val_test_size
 )
-"""
 
 import pickle
 
-"""
 pickle_out = open("minibatch.pickle","wb")
 pickle.dump(minibatch, pickle_out)
 pickle_out.close()
 """
 
-fileObject = open("minibatch.pickle",'rb')  
+fileObject = open("ppi_random.pickle",'rb')  
 minibatch = pickle.load(fileObject)  
 fileObject.close()
 
-
-
+"""
 
 print 'Create model'
 model = DecagonModel(
@@ -401,6 +398,7 @@ with tf.name_scope('optimizer'):
 print 'Initialize session'
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
+saver = tf.train.Saver()
 feed_dict = {}
 
 ###########################################################
@@ -444,7 +442,7 @@ for epoch in range(FLAGS.epochs):
                   "val_apk=", "{:.5f}".format(val_apk), "time=", "{:.5f}".format(time.time() - t))
 
         itr += 1
-
+    """
     roc_list = []
     prc_list = []
     apk_list = []
@@ -462,16 +460,39 @@ for epoch in range(FLAGS.epochs):
     if curr_val_acc < prev_val_acc:
         early_stop_count += 1
         if early_stop_count == 2:
-            print("Stopping early on epoch %d".format(epoch))
+            print("Stopping early on epoch {}".format(epoch))
             break
-        print("Early stop warning on epoch %d".format(epoch))
+        print("Early stop warning on epoch {}".format(epoch))
     else:
         early_stop_count = 0
     prev_val_acc = curr_val_acc
+    """
+
+    save_path = saver.save(sess, "models/{}_{}.ckpt".format(modelname, epoch))
+    print("Model saved in path: %s" % save_path)
+
+    if epoch % 5 == 0:
+        f = open("{}_iter_{}.txt".format(modelname, epoch), "w")
+        for et in range(num_edge_types):
+            roc_score, auprc_score, apk_score = get_accuracy_scores(
+                minibatch.test_edges, minibatch.test_edges_false, minibatch.idx2edge_type[et])
+            print 'Test AUROC score %d: %5.3f' % (et, roc_score)
+            print 'Test AUPRC score %d: %5.3f' % (et, auprc_score)
+            print 'Test AP@k score %d: %5.3f' % (et, apk_score)
+            print
+            f.write("{},{},{},{},{},{}\n".format(
+                minibatch.idx2edge_type[et][0],minibatch.idx2edge_type[et][1],minibatch.idx2edge_type[et][2], 
+                roc_score, auprc_score, apk_score))
+        f.close()
+    
+
 
 
 print("Optimization finished!")
 
+#saver.restore(sess, "./models/{}_0.ckpt".format(modelname))
+
+f = open("{}_iter_{}.txt".format(modelname, "final"), "w")
 for et in range(num_edge_types):
     roc_score, auprc_score, apk_score = get_accuracy_scores(
         minibatch.test_edges, minibatch.test_edges_false, minibatch.idx2edge_type[et])
@@ -479,5 +500,7 @@ for et in range(num_edge_types):
     print 'Test AUPRC score %d: %5.3f' % (et, auprc_score)
     print 'Test AP@k score %d: %5.3f' % (et, apk_score)
     print
-
+    f.write("{},{},{},{},{},{}\n".format(
+        minibatch.idx2edge_type[et][0],minibatch.idx2edge_type[et][1],minibatch.idx2edge_type[et][2], 
+        roc_score, auprc_score, apk_score))
 f.close()
